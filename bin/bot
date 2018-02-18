@@ -1,0 +1,15 @@
+#!/usr/bin/env php
+<?php
+
+use wapmorgan\VkontakteBot\Bot;
+use wapmorgan\SystemDaemon\DaemonManager;
+
+require_once __DIR__.'/../vendor/autoload.php';
+
+$daemon = new Bot([
+        'configFile' => __DIR__.'/config.yaml',
+]);
+$daemon->name = 'vkontakte-bot';
+$daemon->setLogger(Bot::FILES);
+
+(new DaemonManager($daemon))->handleConsole($argc, $argv);

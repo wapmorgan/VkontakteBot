@@ -1,0 +1,23 @@
+# API configuration
+api:
+  # Community key
+  # Get yours on https://vk.com/publicXXX?act=tokens
+  community-key: ""
+
+  # Application configuration
+  application:
+    # Application ID
+    id:
+    # Application key
+    key: ""
+    # Application service key
+    service_key: ""
+
+# Bot configuration
+bot:
+  # Work mode: "simple" or "threaded"
+  work_mode: "simple"
+  # Settings for threaded-mode
+  threads:
+    # Number of simultaneously running threads
+    count: 4

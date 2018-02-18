@@ -1,0 +1,13 @@
+{
+    "require": {
+        "symfony/yaml": "^3.4",
+        "vladkens/vk": "^0.1.9",
+        "wapmorgan/threadable": "~0.0.1",
+        "wapmorgan/system-daemon": "~0.0.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "wapmorgan\\ImageBot\\": "src/"
+        }
+    }
+}
