@@ -10,7 +10,10 @@ use wapmorgan\Threadable\WorkersPool;
 class Bot extends AbstractDaemon
 {
     const VK_EVENT = 1;
+
     const NEW_MESSAGE_EVENT = 2;
+    const MESSAGE_EDIT_EVENT = 4;
+
     const UNREAD_HISTORY_MESSAGE_EVENT = 3;
 
     /**
@@ -84,7 +87,9 @@ class Bot extends AbstractDaemon
 
         $this->config = Yaml::parseFile($configPath);
 
-        $this->vk = new VkApi($this->config->application->id, $this->config->application->key, $this->config->community->key);
+        $this->vk = new VkApi($this->config->api->application->id,
+            $this->config->api->application->key,
+            $this->config->api->community_key);
         $this->vk->setApiVersion($this->apiVersion);
         $this->vk->setCommonParameters([
             'lang' => 'ru',
@@ -167,7 +172,7 @@ class Bot extends AbstractDaemon
             $lps_answer = $this->vk->connectToLpsAndGetUpdates($current_lps ? $current_lps->server : null, $current_lps ? $current_lps->key : null, $current_lps ? $current_lps->ts : null);
             if ($current_lps === false) {
                 $this->log(self::DEBUG, 'Соединение с новым LP-сервером (' . print_r($lps_answer['lps'], true));
-                $this->addNewLps($lps_answer['lps']);
+                $this->changeWorkingLps($lps_answer['lps']);
             } else {
                 if (!isset($lps_answer['lps']->server)) {
                     $this->log(self::DEBUG, 'Обновление параметров LP-сервера (' . print_r($lps_answer['lps'], true) . ')');
@@ -179,10 +184,28 @@ class Bot extends AbstractDaemon
             }
 
             foreach ($lps_answer['updates'] as $update) {
-                // Работаем только с событиями новых сообщений (код - 4)
                 switch ($update[0]) {
                     case VkApi::NEW_MESSAGE_ADDED_CODE:
-                        $this->raiseEvent(self::NEW_MESSAGE_EVENT, $this->createMessageFromLongPollUpdate($update));
+                        $this->raiseEvent(self::NEW_MESSAGE_EVENT, Message::createFromLongPollEvent($update));
+                        break;
+
+                    case VkApi::MESSAGE_EDITED_CODE:
+                        $this->raiseEvent(self::MESSAGE_EDIT_EVENT, );
+                        break;
+
+                    case VkApi::FRIEND_BECAME_ONLINE:
+                        break;
+
+                    case VkApi::FRIEND_BECAME_OFFLINE:
+                        break;
+
+                    case VkApi::USER_TYPING_IN_DIALOG:
+                        break;
+
+                    case VkApi::USER_TYPING_IN_CHAT:
+                        break;
+
+                    default:
                         break;
                 }
 
