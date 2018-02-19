@@ -5,6 +5,7 @@ api:
   community-key: ""
 
   # Application configuration
+  # Get yours on https://vk.com/editapp?id=XXX&section=options
   application:
     # Application ID
     id:

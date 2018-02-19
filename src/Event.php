@@ -15,14 +15,21 @@ class Event
     protected $eventData;
 
     /**
+     * @var Bot
+     */
+    protected $bot;
+
+    /**
      * Event constructor.
      * @param $eventType
      * @param $eventData
+     * @param Bot $bot
      */
-    public function __construct($eventType, $eventData)
+    public function __construct($eventType, $eventData, Bot $bot)
     {
         $this->eventType = $eventType;
         $this->eventData = $eventData;
+        $this->bot = $bot;
     }
 
     /**
@@ -39,5 +46,13 @@ class Event
     public function getEventData()
     {
         return $this->eventData;
+    }
+
+    /**
+     * @return Bot
+     */
+    public function getBot()
+    {
+        return $this->bot;
     }
 }

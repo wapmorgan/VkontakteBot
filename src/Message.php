@@ -2,6 +2,8 @@
 namespace wapmorgan\VkontakteBot;
 
 
+use stdClass;
+
 class Message
 {
     /**
@@ -50,9 +52,39 @@ class Message
         if (isset($update[4])) {
             $message->timestamp = $update[4];
             $message->text = $update[5];
-            if (isset($update[6]) && is_array($update[6]))
-                $message->attachments = $update[6];
+            if (isset($update[6]) && is_array($update[6])) {
+                foreach ($update[6] as $field => $value) {
+                    if (fnmatch('attach*_type', $field)) {
+                        $message->attachments[] = (object)[
+                            'type' => $value,
+                            'id' => $update[6]->{'attach' . substr(strstr($field, '_', true), 6)},
+                        ];
+                    }
+                }
+            }
         }
+        return $message;
+    }
+
+    /**
+     * @param stdClass $historyMessage
+     * @return Message
+     */
+    public static function createFromDialogHistory(stdClass $historyMessage)
+    {
+        $message = new self();
+        $message->messageId = $historyMessage->id;
+        $message->peerId = $historyMessage->from_id;
+        $message->timestamp = $historyMessage->date;
+        if ($historyMessage->read_state == 0)
+            $message->flags |= self::UNREAD;
+        if ($historyMessage->out == 0)
+            $message->flags |= self::OUTBOX;
+        if (isset($historyMessage->important) && $historyMessage->important)
+            $message->flags |= self::IMPORTANT;
+        if (isset($historyMessage->deleted) && $historyMessage->deleted)
+            $message->flags |= self::DELETED;
+        $message->text = $historyMessage->body;
         return $message;
     }
 }

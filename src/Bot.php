@@ -12,9 +12,13 @@ class Bot extends AbstractDaemon
     const VK_EVENT = 1;
 
     const NEW_MESSAGE_EVENT = 2;
-    const MESSAGE_EDIT_EVENT = 4;
+    const NEW_OUTBOX_MESSAGE_EVENT = 3;
+    const NEW_INBOX_MESSAGE_EVENT = 4;
+    const NEW_UNREAD_INBOX_MESSAGE_EVENT = 5;
 
-    const UNREAD_HISTORY_MESSAGE_EVENT = 3;
+    const MESSAGE_EDIT_EVENT = 10;
+
+    const UNREAD_HISTORY_MESSAGE_EVENT = 20;
 
     /**
      * @var string Расположение файла с yaml-конфигом
@@ -34,7 +38,7 @@ class Bot extends AbstractDaemon
     /**
      * @var string Полный путь до lps-файла
      */
-    protected $lpsPath = false;
+    protected $lpsPath;
 
     /**
      * @var array Загруженный конфиг
@@ -73,7 +77,6 @@ class Bot extends AbstractDaemon
     public function onStart()
     {
         $this->init();
-        $this->start();
     }
 
     /**
@@ -85,43 +88,20 @@ class Bot extends AbstractDaemon
         if (!file_exists($configPath = $this->configFile))
             throw new Exception('Invalid config path: '.$this->configFile);
 
-        $this->config = Yaml::parseFile($configPath);
+        $this->config = (array)Yaml::parseFile($configPath);
 
-        $this->vk = new VkApi($this->config->api->application->id,
-            $this->config->api->application->key,
-            $this->config->api->community_key);
+        $this->vk = new VkApi($this->config['api']['application']['id'],
+            $this->config['api']['application']['key'],
+            $this->config['api']['community-key']);
         $this->vk->setApiVersion($this->apiVersion);
         $this->vk->setCommonParameters([
             'lang' => 'ru',
         ]);
 
-        $this->registerEventListener(self::UNREAD_HISTORY_MESSAGE_EVENT, [$this, 'handleUnreadHistoryMessageEvent']);
-        $this->registerEventListener(self::NEW_MESSAGE_EVENT, [$this, 'handleNewMessageEvent']);
-    }
+//        $this->registerEventListener(self::UNREAD_HISTORY_MESSAGE_EVENT, [$this, 'handleUnreadHistoryMessageEvent']);
+//        $this->registerEventListener(self::NEW_MESSAGE_EVENT, [$this, 'handleNewMessageEvent']);
 
-    /**
-     * Запускает бота
-     * @throws VkException
-     * @throws Exception
-     */
-    public function start()
-    {
-        if ($this->config->bot->work_mode === 'threaded') {
-            // создаем обработчика сообщений
-            $this->workers = new WorkersPool(__NAMESPACE__.'\\MessageHandlerWorker');
-            $this->workers->setPoolSize($this->config->bot->threads->count);
-            $this->workers->enableDataOverhead();
-        }
-
-        // получаем ранее непрочитанные сообщения пользователей
-        $this->processHistory();
-        // начинаем обработку поступающих сообщений
-        $this->connectToStream();
-
-        // после выхода из этой функции останавливаем бота (и все порожденные процессы)
-        if ($this->config->bot->work_mode === 'threaded') {
-            $this->workers->waitToFinish();
-        }
+        $this->mainLoop();
     }
 
     /**
@@ -149,10 +129,12 @@ class Bot extends AbstractDaemon
                 $this->log(self::DEBUG, 'Чтение очередной порции сообщений из диалога '.$dialog->message->user_id.' (со смещения '.$offset.') -> получено непрочитанных - '.$dialog_unread_messages->unread);
 
                 foreach ($dialog_unread_messages->items as $dialog_unread_message) {
-                    $this->raiseEvent(self::UNREAD_HISTORY_MESSAGE_EVENT, $this->createMessageFromDialogHistory($dialog_unread_message));
+                    if ($dialog_unread_message->out == 0
+                        && $dialog_unread_message->read_state == 0) {
+                        $n_unread_messages--;
+                        $this->raiseEvent(self::UNREAD_HISTORY_MESSAGE_EVENT, Message::createFromDialogHistory($dialog_unread_message));
+                    }
                 }
-
-                $n_unread_messages -= $dialog_unread_messages->unread;
                 $offset += VkApi::MAX_MESSAGES_COUNT_IN_DIALOG_QUERY;
             }
 
@@ -170,27 +152,35 @@ class Bot extends AbstractDaemon
         while ($this->running) {
             $current_lps = $this->getWorkingLps();
             $lps_answer = $this->vk->connectToLpsAndGetUpdates($current_lps ? $current_lps->server : null, $current_lps ? $current_lps->key : null, $current_lps ? $current_lps->ts : null);
+
             if ($current_lps === false) {
                 $this->log(self::DEBUG, 'Соединение с новым LP-сервером (' . print_r($lps_answer['lps'], true));
                 $this->changeWorkingLps($lps_answer['lps']);
+            } else if (!isset($lps_answer['lps']->server)) {
+                $this->log(self::DEBUG, 'Обновление параметров LP-сервера (' . print_r($lps_answer['lps'], true) . ')');
+                $this->changeWorkingLps($lps_answer['lps']);
             } else {
-                if (!isset($lps_answer['lps']->server)) {
-                    $this->log(self::DEBUG, 'Обновление параметров LP-сервера (' . print_r($lps_answer['lps'], true) . ')');
-                    $this->changeWorkingLps($lps_answer['lps']);
-                } else {
-                    $this->log(self::DEBUG, 'Смена LP-сервера (' . print_r($lps_answer['lps'], true) . ')');
-                    $this->changeWorkingLps($lps_answer['lps']);
-                }
+                $this->log(self::DEBUG, 'Смена LP-сервера (' . print_r($lps_answer['lps'], true) . ')');
+                $this->changeWorkingLps($lps_answer['lps']);
             }
 
             foreach ($lps_answer['updates'] as $update) {
                 switch ($update[0]) {
                     case VkApi::NEW_MESSAGE_ADDED_CODE:
-                        $this->raiseEvent(self::NEW_MESSAGE_EVENT, Message::createFromLongPollEvent($update));
+                        $message = Message::createFromLongPollEvent($update);
+                        $this->raiseEvent(self::NEW_MESSAGE_EVENT, $message);
+
+                        if ($message->flags & Message::OUTBOX)
+                            $this->raiseEvent(self::NEW_OUTBOX_MESSAGE_EVENT, $message);
+                        else {
+                            if ($message->flags & Message::UNREAD)
+                                $this->raiseEvent(self::NEW_UNREAD_INBOX_MESSAGE_EVENT, $message);
+                            else
+                                $this->raiseEvent(self::NEW_INBOX_MESSAGE_EVENT, $message);
+                        }
                         break;
 
                     case VkApi::MESSAGE_EDITED_CODE:
-                        $this->raiseEvent(self::MESSAGE_EDIT_EVENT, );
                         break;
 
                     case VkApi::FRIEND_BECAME_ONLINE:
@@ -248,7 +238,7 @@ class Bot extends AbstractDaemon
         if (!isset($this->eventListeners[$eventType]))
             return true;
 
-        $event = new Event($eventType, $eventData);
+        $event = new Event($eventType, $eventData, $this);
 
         foreach ($this->eventListeners[$eventType] as $eventListener) {
             $result = call_user_func($eventListener, $event);
@@ -265,17 +255,9 @@ class Bot extends AbstractDaemon
      * @param $eventType
      * @param $eventListener
      */
-    protected function registerEventListener($eventType, $eventListener)
+    public function registerEventListener($eventType, $eventListener)
     {
         $this->eventListeners[$eventType][] = $eventListener;
-    }
-
-    /**
-     * @param $dialog_unread_message
-     */
-    private function createMessageFromDialogHistory(array $dialog_unread_message)
-    {
-        var_dump($dialog_unread_message);
     }
 
     /**
@@ -291,17 +273,22 @@ class Bot extends AbstractDaemon
     }
 
     /**
-     * @param stdclass $lps Объект с одним или несколькими свойствами: key, ts
+     * @param stdClass $lpsChange
      * @return mixed
      */
     public function changeWorkingLps(stdclass $lpsChange)
     {
         $lps = $this->getWorkingLps();
 
+        if ($lps === false)
+            $lps = new stdClass();
+
+        if (isset($lpsChange->server))
+            $lps->server = $lpsChange->server;
         if (isset($lpsChange->key))
-            $lps['key'] = $lpsChange->key;
-        if (isset($lps->ts))
-            $lps['ts'] = $lpsChange->ts;
+            $lps->key = $lpsChange->key;
+        if (isset($lpsChange->ts))
+            $lps->ts = $lpsChange->ts;
 
         $lps_encoded = json_encode($lps);
 
@@ -322,30 +309,71 @@ class Bot extends AbstractDaemon
     }
 
     /**
+     * @param Event $event
      * @throws VkException
      */
-    protected function handleNewMessageEvent($eventType, Message $message)
+    protected function handleUnreadHistoryMessageEvent(Event $event)
     {
+        /** @var Message $message */
+        $message = $event->getEventData();
+
         // Помечаем прочитанным
         $this->vk->api('messages.markAsRead', [
-            'peer_id' => $update[3],
-            'start_message_id' => $update[1],
+            'peer_id' => $message->peerId,
+            'start_message_id' => $message->messageId,
         ]);
+    }
 
-        // Работает только с теми сообщениями, в которых если прикрепленные файлы
-        if (!isset($update[6])) {
-            continue;
+    /**
+     * @param Event $event
+     * @return bool
+     * @throws VkException
+     */
+    protected function handleNewMessageEvent(Event $event)
+    {
+        /** @var Message $message */
+        $message = $event->getEventData();
+
+        // Помечаем прочитанным
+        $this->vk->api('messages.markAsRead', [
+            'peer_id' => $message->peerId,
+            'start_message_id' => $message->messageId,
+        ]);
+        return true;
+    }
+
+    /**
+     * @throws Exception
+     * @throws VkException
+     */
+    protected function mainLoop()
+    {
+        if ($this->config['bot']['work_mode'] === 'threaded') {
+            // создаем обработчика сообщений
+            $this->workers = new WorkersPool(__NAMESPACE__.'\\EventHandlerWorker');
+            $this->workers->setPoolSize($this->config->bot->threads->count);
+            $this->workers->enableDataOverhead();
         }
 
-        // Преобразуем список вложений в массив объектов
-        $attachments = [];
-        foreach ($update[6] as $field => $value) {
-            if (fnmatch('attach*_type', $field)) {
-                $attachments[] = (object)[
-                    'type' => $value,
-                    'id' => $update[6]->{'attach' . substr(strstr($field, '_', true), 6)},
-                ];
-            }
+        // получаем ранее непрочитанные сообщения пользователей
+        $this->processHistory();
+        // начинаем обработку поступающих сообщений
+        $this->connectToStream();
+
+        $this->log(self::DEBUG, 'Завершение работы');
+
+        unlink($this->getLpsPath());
+        // после выхода из этой функции останавливаем бота (и все порожденные процессы)
+        if ($this->config['bot']['work_mode'] === 'threaded') {
+            $this->workers->waitToFinish();
         }
+    }
+
+    /**
+     * @return VkApi
+     */
+    public function getApi()
+    {
+        return $this->vk;
     }
 }
