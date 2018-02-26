@@ -1,12 +1,8 @@
-#!/usr/bin/env php
 <?php
 
 use wapmorgan\VkontakteBot\Bot;
-use wapmorgan\SystemDaemon\DaemonManager;
 use wapmorgan\VkontakteBot\Event;
 use wapmorgan\VkontakteBot\Message;
-
-require_once __DIR__.'/../vendor/autoload.php';
 
 $daemon = new Bot([
     'configFile' => dirname(__DIR__).'/config.yaml',
@@ -37,4 +33,4 @@ $daemon->registerEventListener(Bot::NEW_UNREAD_INBOX_MESSAGE_EVENT, function (Ev
     ]);
 });
 
-(new DaemonManager($daemon))->handleConsole($argc, $argv);
+return $daemon;

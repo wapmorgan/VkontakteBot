@@ -1,0 +1,22 @@
+#!/usr/bin/env php
+<?php
+declare(ticks=1);
+
+use wapmorgan\VkontakteBot\Bot;
+
+require_once __DIR__.'/../vendor/autoload.php';
+
+$daemon = require __DIR__.'/bot-initialization.php';
+$daemon->setLogger(Bot::TERMINAL);
+
+$shutdown_function = function () use ($daemon) {
+    echo 'Shutting down...'.PHP_EOL;
+    $daemon->running = false;
+};
+
+pcntl_signal(SIGTERM, $shutdown_function);
+pcntl_signal(SIGINT, $shutdown_function);
+
+echo 'Starting (Ctrl+C to stop)...'.PHP_EOL;
+$daemon->onStart();
+echo 'Ended'.PHP_EOL;

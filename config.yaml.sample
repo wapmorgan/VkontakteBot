@@ -14,6 +14,9 @@ api:
     # Application service key
     service_key: ""
 
+  # Default language for names
+  language: "ru"
+
 # Bot configuration
 bot:
   # Work mode: "simple" or "threaded"

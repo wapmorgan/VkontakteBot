@@ -1,0 +1,9 @@
+#!/usr/bin/env php
+<?php
+use wapmorgan\SystemDaemon\DaemonManager;
+
+require_once __DIR__.'/../vendor/autoload.php';
+
+$daemon = require __DIR__.'/bot-initialization.php';
+
+(new DaemonManager($daemon))->handleConsole($argc, $argv);

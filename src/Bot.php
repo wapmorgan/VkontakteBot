@@ -60,6 +60,9 @@ class Bot extends AbstractDaemon
      */
     protected $eventListeners = [];
 
+    /** @var bool  */
+    public $running = true;
+
     /**
      * Создаёт объект и переопределяет некоторые параметры бота
      * @throws Exception
@@ -72,11 +75,20 @@ class Bot extends AbstractDaemon
     }
 
     /**
+     * @return VkApi
+     */
+    public function getApi()
+    {
+        return $this->vk;
+    }
+
+    /**
      * @throws Exception
      */
     public function onStart()
     {
         $this->init();
+        $this->mainLoop();
     }
 
     /**
@@ -95,13 +107,35 @@ class Bot extends AbstractDaemon
             $this->config['api']['community-key']);
         $this->vk->setApiVersion($this->apiVersion);
         $this->vk->setCommonParameters([
-            'lang' => 'ru',
+            'lang' => $this->config['api']['language'],
         ]);
+    }
 
-//        $this->registerEventListener(self::UNREAD_HISTORY_MESSAGE_EVENT, [$this, 'handleUnreadHistoryMessageEvent']);
-//        $this->registerEventListener(self::NEW_MESSAGE_EVENT, [$this, 'handleNewMessageEvent']);
+    /**
+     * @throws Exception
+     * @throws VkException
+     */
+    protected function mainLoop()
+    {
+        if ($this->config['bot']['work_mode'] === 'threaded') {
+            // создаем обработчика сообщений
+            $this->workers = new WorkersPool(__NAMESPACE__.'\\EventHandlerWorker');
+            $this->workers->setPoolSize($this->config->bot->threads->count);
+            $this->workers->enableDataOverhead();
+        }
 
-        $this->mainLoop();
+        // получаем ранее непрочитанные сообщения пользователей
+        $this->processHistory();
+        // начинаем обработку поступающих сообщений
+        $this->connectToStream();
+
+        $this->log(self::DEBUG, 'Завершение работы');
+
+        unlink($this->getLpsPath());
+        // после выхода из этой функции останавливаем бота (и все порожденные процессы)
+        if ($this->config['bot']['work_mode'] === 'threaded') {
+            $this->workers->waitToFinish();
+        }
     }
 
     /**
@@ -205,30 +239,6 @@ class Bot extends AbstractDaemon
     }
 
     /**
-     * @param $userId
-     * @param array $attachments
-     * @return bool
-     * @throws VkException
-     */
-    protected function validateMessageAndQueue($userId, array $attachments)
-    {
-        // Если есть изображения, отправляем в очередь
-        foreach ($attachments as $attachment) {
-            if ($attachment->type == 'photo') {
-                $this->database->addImage($userId, $attachment->id);
-                $this->vk->api('messages.send', [
-                    'user_id' => $userId,
-                    'peer_id' => $userId,
-                    'message' => 'Ваша фотография поставлена в очередь на выполнение. Ожидайте.',
-                ]);
-                $this->log(self::INFO, 'Добавлено изображение '.$attachment->id.' от пользователя ' . $userId);
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
      * @param $eventType
      * @param $eventData
      * @return bool
@@ -298,7 +308,7 @@ class Bot extends AbstractDaemon
     /**
      * @return string
      */
-    protected function getLpsPath()
+    public function getLpsPath()
     {
         if ($this->lpsPath === null) {
             $this->lpsPath = sys_get_temp_dir().'/'.strtr($this->lpsFilename, [
@@ -306,74 +316,5 @@ class Bot extends AbstractDaemon
             ]);
         }
         return $this->lpsPath;
-    }
-
-    /**
-     * @param Event $event
-     * @throws VkException
-     */
-    protected function handleUnreadHistoryMessageEvent(Event $event)
-    {
-        /** @var Message $message */
-        $message = $event->getEventData();
-
-        // Помечаем прочитанным
-        $this->vk->api('messages.markAsRead', [
-            'peer_id' => $message->peerId,
-            'start_message_id' => $message->messageId,
-        ]);
-    }
-
-    /**
-     * @param Event $event
-     * @return bool
-     * @throws VkException
-     */
-    protected function handleNewMessageEvent(Event $event)
-    {
-        /** @var Message $message */
-        $message = $event->getEventData();
-
-        // Помечаем прочитанным
-        $this->vk->api('messages.markAsRead', [
-            'peer_id' => $message->peerId,
-            'start_message_id' => $message->messageId,
-        ]);
-        return true;
-    }
-
-    /**
-     * @throws Exception
-     * @throws VkException
-     */
-    protected function mainLoop()
-    {
-        if ($this->config['bot']['work_mode'] === 'threaded') {
-            // создаем обработчика сообщений
-            $this->workers = new WorkersPool(__NAMESPACE__.'\\EventHandlerWorker');
-            $this->workers->setPoolSize($this->config->bot->threads->count);
-            $this->workers->enableDataOverhead();
-        }
-
-        // получаем ранее непрочитанные сообщения пользователей
-        $this->processHistory();
-        // начинаем обработку поступающих сообщений
-        $this->connectToStream();
-
-        $this->log(self::DEBUG, 'Завершение работы');
-
-        unlink($this->getLpsPath());
-        // после выхода из этой функции останавливаем бота (и все порожденные процессы)
-        if ($this->config['bot']['work_mode'] === 'threaded') {
-            $this->workers->waitToFinish();
-        }
-    }
-
-    /**
-     * @return VkApi
-     */
-    public function getApi()
-    {
-        return $this->vk;
     }
 }
