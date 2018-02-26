@@ -3,6 +3,7 @@
 use wapmorgan\VkontakteBot\Bot;
 use wapmorgan\VkontakteBot\Event;
 use wapmorgan\VkontakteBot\Message;
+use wapmorgan\VkontakteBot\TypingInDialog;
 
 $daemon = new Bot([
     'configFile' => dirname(__DIR__).'/config.yaml',
@@ -31,6 +32,13 @@ $daemon->registerEventListener(Bot::NEW_UNREAD_INBOX_MESSAGE_EVENT, function (Ev
         'peer_id' => $message->peerId,
         'message' => 'Новое сообщение: ' . strrev($message->text)
     ]);
+});
+
+$daemon->registerEventListener(Bot::USER_TYPING_IN_DIALOG_EVENT, function (Event $event) {
+    /** @var TypingInDialog $event_data */
+    $event_data = $event->getEventData();
+
+    var_dump($event_data);
 });
 
 return $daemon;

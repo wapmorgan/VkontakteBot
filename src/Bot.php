@@ -11,7 +11,7 @@ class Bot extends AbstractDaemon
 {
     const VK_EVENT = 1;
 
-    const NEW_MESSAGE_EVENT = 2;
+//    const NEW_MESSAGE_EVENT = 2;
     const NEW_OUTBOX_MESSAGE_EVENT = 3;
     const NEW_INBOX_MESSAGE_EVENT = 4;
     const NEW_UNREAD_INBOX_MESSAGE_EVENT = 5;
@@ -19,6 +19,8 @@ class Bot extends AbstractDaemon
     const MESSAGE_EDIT_EVENT = 10;
 
     const UNREAD_HISTORY_MESSAGE_EVENT = 20;
+
+    const USER_TYPING_IN_DIALOG_EVENT = 30;
 
     /**
      * @var string Расположение файла с yaml-конфигом
@@ -202,7 +204,7 @@ class Bot extends AbstractDaemon
                 switch ($update[0]) {
                     case VkApi::NEW_MESSAGE_ADDED_CODE:
                         $message = Message::createFromLongPollEvent($update);
-                        $this->raiseEvent(self::NEW_MESSAGE_EVENT, $message);
+//                        $this->raiseEvent(self::NEW_MESSAGE_EVENT, $message);
 
                         if ($message->flags & Message::OUTBOX)
                             $this->raiseEvent(self::NEW_OUTBOX_MESSAGE_EVENT, $message);
@@ -224,6 +226,7 @@ class Bot extends AbstractDaemon
                         break;
 
                     case VkApi::USER_TYPING_IN_DIALOG:
+                        $this->raiseEvent(self::USER_TYPING_IN_DIALOG_EVENT, TypingInDialog::createFromLongPollEvent($update));
                         break;
 
                     case VkApi::USER_TYPING_IN_CHAT:
