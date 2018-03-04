@@ -1,4 +1,6 @@
 {
+    "name": "wapmorgan/vkontakte-bot",
+    "license": "GPL-3.0-only",
     "require": {
         "symfony/yaml": "^3.4",
         "vladkens/vk": "^0.1.9",
