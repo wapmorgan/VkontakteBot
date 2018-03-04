@@ -12,33 +12,23 @@ $daemon = new Bot([
 ]);
 $daemon->setLogger(Bot::FILES);
 
-$daemon->registerEventListener(Bot::UNREAD_HISTORY_MESSAGE_EVENT, function (Event $event) {
-    /** @var Message $message */
-    $message = $event->getEventData();
+class SimpleBot {
+    public function onUnreadMessageEvent(Event $event) {
+        return $this->onMessage($event->getBot(), $event->getEventData());
+    }
 
-    $event->getBot()->getApi()->api('messages.send', [
-        'user_id' => $message->peerId,
-        'peer_id' => $message->peerId,
-        'message' => 'Сообщение из истории: ' . mb_strtoupper($message->text)
-    ]);
-});
+    public function onMessage(Bot $bot, Message $message) {
+        $bot->getApi()->api('messages.send', [
+            'user_id' => $message->peerId,
+            'peer_id' => $message->peerId,
+            'message' => mb_strtoupper($message->text)
+        ]);
+    }
+}
 
-$daemon->registerEventListener(Bot::NEW_UNREAD_INBOX_MESSAGE_EVENT, function (Event $event) {
-    /** @var Message $message */
-    $message = $event->getEventData();
+$bot = new SimpleBot();
 
-    $event->getBot()->getApi()->api('messages.send', [
-        'user_id' => $message->peerId,
-        'peer_id' => $message->peerId,
-        'message' => 'Новое сообщение: ' . mb_strtoupper($message->text)
-    ]);
-});
-
-$daemon->registerEventListener(Bot::USER_TYPING_IN_DIALOG_EVENT, function (Event $event) {
-    /** @var TypingInDialog $event_data */
-    $event_data = $event->getEventData();
-
-    var_dump($event_data);
-});
+$daemon->registerEventListener(Bot::UNREAD_HISTORY_MESSAGE_EVENT, [$bot, 'onUnreadMessageEvent']);
+$daemon->registerEventListener(Bot::NEW_UNREAD_INBOX_MESSAGE_EVENT, [$bot, 'onUnreadMessageEvent']);
 
 return $daemon;
