@@ -7,7 +7,19 @@
 3. Открыть файл `bot-initialization.php`. Добавить/изменить обработчики событий:
     - Обработчик любого события регистрируется методов `registerEventListener()` объекта `Bot`, например:
     ```php
-    $daemon->registerEventListener(Bot::UNREAD_HISTORY_MESSAGE_EVENT, function (Event $event) {
+    $daemon->registerEventListener(Bot::UNREAD_HISTORY_MESSAGE_EVENT, $historyMessageListener);
+    ```
+
+    - В зарегистрированный обработчик при наступлении события передаётся объект типа `wapmorgan\VkontakteBot\Event`, который имеет следующие полезные методы:
+        - `Bot getBot()` - возвращает экземпляр бота. Через этот объект можно взаимодействовать с API.
+        - `object getEventData()` - возвращает объект данные события. В зависимости от типа события могут передаваться:
+            - объект `wapmorgan\VkontakteBot\Message` - объект сообщения.
+            - объект `wapmorgan\VkontakteBot\TypingInDialog` - объект уведомления, что пользователь начал что-то писать в диалоге.
+
+    - То есть для обработки входящих сообщений, присланных ДО запуска бота, подойдет такой обработчик:
+
+    ```php
+    $historyMessageListener = function (Event $event) {
         // Получаем объект непрочитанного сообщения со всеми данными
         /** @var Message $message */
         $message = $event->getEventData();
@@ -18,16 +30,12 @@
             'peer_id' => $message->peerId,
             'message' => 'Сообщение из истории: ' . mb_strtoupper($message->text)
         ]);
-    });
+    }
+
+    $daemon->registerEventListener(Bot::UNREAD_HISTORY_MESSAGE_EVENT, $historyMessageListener);
     ```
 
-    В зарегистрированный обработчик при наступлении события передаётся объект типа `wapmorgan\VkontakteBot\Event`, который имеет следующие полезные методы:
-    - `Bot getBot()` - возвращает экземпляр бота. Через этот объект можно взаимодействовать с API.
-    - `object getEventData()` - возвращает объект данные события. В зависимости от типа события могут передаваться:
-        - объект `wapmorgan\VkontakteBot\Message` - объект сообщения.
-        - объект `wapmorgan\VkontakteBot\TypingInDialog` - объект уведомления, что пользователь начал что-то писать в диалоге.
-
-4. Запустить `sudo bin/bot-laucnher`.
+4. Запустить `sudo bin/bot-laucnher` (режим работы бота в реальном времени) или `sudo bin/bot-daemon start` (для запуска бота в качестве демона).
 
 ## События
 | Событие | Описание | Передаваемые данные |
