@@ -2,10 +2,10 @@
 
 Как создать простого бота:
 
-1. Склонировать проект: `composer create-project wapmorgan/vkontakte-bot`
-2. Отредактировать `config.yaml` в соответствии с комментариями
-3. Открыть файл `bot-initialization.php` и изменить / добавить обработчики на основные события:
-4. Запустить `sudo bin/bot-laucnher start`
+1. Склонировать проект: `composer create-project wapmorgan/vkontakte-bot`.
+2. Отредактировать `config.yaml` в соответствии с комментариями.
+3. Открыть файл `bot-initialization.php` и изменить / добавить обработчики на основные события.
+4. Запустить `sudo bin/bot-laucnher`.
 
 ## События
 | Событие | Описание | Передаваемые данные |
