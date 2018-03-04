@@ -11,5 +11,10 @@
         "psr-4": {
             "wapmorgan\\VkontakteBot\\": "src/"
         }
+    },
+    "scripts": {
+        "post-create-project-cmd": [
+            "php -r \"copy('config.yaml.example', 'config.yaml');\""
+        ]
     }
 }
