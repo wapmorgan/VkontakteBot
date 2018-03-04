@@ -5,14 +5,15 @@
 1. Склонировать проект: `composer create-project wapmorgan/vkontakte-bot`.
 2. Отредактировать `config.yaml` в соответствии с комментариями (внести данные приложения и сообщества)
 3. Открыть файл `bot-initialization.php`. Добавить/изменить обработчики событий:
-    - Обработчик любого события регистрируется методов `registerEventListener()` объекта `Bot`, например:
+
+    - Обработчик любого события регистрируется методом `registerEventListener()` объекта `Bot`, например:
     ```php
     $daemon->registerEventListener(Bot::UNREAD_HISTORY_MESSAGE_EVENT, $historyMessageListener);
     ```
 
     - В зарегистрированный обработчик при наступлении события передаётся объект типа `wapmorgan\VkontakteBot\Event`, который имеет следующие полезные методы:
         - `Bot getBot()` - возвращает экземпляр бота. Через этот объект можно взаимодействовать с API.
-        - `object getEventData()` - возвращает объект данные события. В зависимости от типа события могут передаваться:
+        - `object getEventData()` - возвращает объект данных события. В зависимости от типа события могут передаваться:
             - объект `wapmorgan\VkontakteBot\Message` - объект сообщения.
             - объект `wapmorgan\VkontakteBot\TypingInDialog` - объект уведомления, что пользователь начал что-то писать в диалоге.
 
@@ -35,7 +36,7 @@
     $daemon->registerEventListener(Bot::UNREAD_HISTORY_MESSAGE_EVENT, $historyMessageListener);
     ```
 
-4. Запустить `sudo bin/bot-laucnher` (режим работы бота в реальном времени) или `sudo bin/bot-daemon start` (для запуска бота в качестве демона).
+4. Запустить `sudo bin/bot-launcher` (режим работы бота в реальном времени) или `sudo bin/bot-daemon start` (для запуска бота в качестве демона).
 
 ## События
 | Событие | Описание | Передаваемые данные |
