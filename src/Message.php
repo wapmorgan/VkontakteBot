@@ -22,6 +22,15 @@ class Message
     const HIDDEN = 65536;
     const DELETED_FOR_ALL = 131072;
 
+    const PHOTO = 'photo';
+    const VIDEO = 'video';
+    const AUDIO = 'audio';
+    const DOC = 'doc';
+    const WALL = 'wall';
+    const STICKER = 'sticker';
+    const LINK = 'link';
+    const MONEY = 'money';
+
     /**
      * @var int
      */
@@ -87,4 +96,16 @@ class Message
         $message->text = $historyMessage->body;
         return $message;
     }
+
+    /**
+     * @param $type
+     * @return bool
+     */
+    public function hasAttachmentsOfType($type) {
+        foreach ($this->attachments as $key => $value) {
+            if (strpos($key, '_type') !== false && $value === $type) return true;
+        }
+        return false;
+    }
+
 }
