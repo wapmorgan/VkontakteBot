@@ -5,16 +5,11 @@
         "symfony/yaml": "^3.4",
         "vladkens/vk": "^0.1.9",
         "wapmorgan/threadable": "~0.0.1",
-        "wapmorgan/system-daemon": "~0.0.2"
+        "wapmorgan/system-daemon": "~0.0.3"
     },
     "autoload": {
         "psr-4": {
             "wapmorgan\\VkontakteBot\\": "src/"
         }
-    },
-    "scripts": {
-        "post-create-project-cmd": [
-            "php -r \"copy('config.yaml.example', 'config.yaml');\""
-        ]
     }
 }
