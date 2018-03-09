@@ -6,12 +6,15 @@ use wapmorgan\VkontakteBot\Bot;
 
 require_once __DIR__.'/../vendor/autoload.php';
 
+$main_pid = getmypid();
 $daemon = require __DIR__.'/bot-initialization.php';
 $daemon->setLogger(Bot::TERMINAL);
 
-$shutdown_function = function () use ($daemon) {
-    echo 'Shutting down...'.PHP_EOL;
-    $daemon->running = false;
+$shutdown_function = function () use ($daemon, $main_pid) {
+    if (getmypid() === $main_pid) {
+        echo 'Shutting down...'.PHP_EOL;
+        $daemon->running = false;
+    }
 };
 
 pcntl_signal(SIGTERM, $shutdown_function);

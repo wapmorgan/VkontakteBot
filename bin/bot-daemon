@@ -1,9 +1,11 @@
 #!/usr/bin/env php
 <?php
 use wapmorgan\SystemDaemon\DaemonManager;
+use wapmorgan\VkontakteBot\Bot;
 
 require_once __DIR__.'/../vendor/autoload.php';
 
 $daemon = require __DIR__.'/bot-initialization.php';
+$daemon->setLogger(Bot::FILES);
 
 (new DaemonManager($daemon))->handleConsole($argc, $argv);

@@ -111,6 +111,7 @@ class Bot extends AbstractDaemon
         $this->vk->setCommonParameters([
             'lang' => $this->config['api']['language'],
         ]);
+        $this->vk->defaultLpsParams['wait'] = $this->config['api']['lps-timeout'];
     }
 
     /**
@@ -121,9 +122,14 @@ class Bot extends AbstractDaemon
     {
         if ($this->config['bot']['work_mode'] === 'threaded') {
             // создаем обработчика сообщений
-            $this->workers = new WorkersPool(__NAMESPACE__.'\\EventHandlerWorker');
-            $this->workers->setPoolSize($this->config->bot->threads->count);
+            $worker = new EventHandlerWorker();
+            $worker->bot = $this;
+
+            $this->workers = new WorkersPool($worker);
+            $this->workers->setPoolSize($this->config['bot']['threads']['count']);
             $this->workers->enableDataOverhead();
+
+            $this->log(self::DEBUG, 'Запуск потоковых обработчиков ('.$this->config['bot']['threads']['count'].')');
         }
 
         // получаем ранее непрочитанные сообщения пользователей
@@ -143,6 +149,7 @@ class Bot extends AbstractDaemon
     /**
      * Обрабатывает непрочитанные сообщения, пришедшие до запуска бота
      * @throws VkException
+     * @throws Exception
      */
     protected function processHistory()
     {
@@ -168,20 +175,22 @@ class Bot extends AbstractDaemon
                     if ($dialog_unread_message->out == 0
                         && $dialog_unread_message->read_state == 0) {
                         $n_unread_messages--;
-                        $this->raiseEvent(self::UNREAD_HISTORY_MESSAGE_EVENT, Message::createFromDialogHistory($dialog_unread_message));
+
+
+                        $this->handleEvent(self::UNREAD_HISTORY_MESSAGE_EVENT, Message::createFromDialogHistory($dialog_unread_message));
                     }
                 }
                 $offset += VkApi::MAX_MESSAGES_COUNT_IN_DIALOG_QUERY;
             }
 
         }
-        $this->log(self::INFO, print_r($dialogs, true));
     }
 
     /**
      * Соединяется с LongPoll-сервером ВКонтакте и начинает принимать поступающие сообщения от пользователей.
      * При необходимости переподсоединяется к новому серверу или обновляет настройки подключения.
      * @throws VkException
+     * @throws Exception
      */
     protected function connectToStream()
     {
@@ -193,10 +202,10 @@ class Bot extends AbstractDaemon
                 $this->log(self::DEBUG, 'Соединение с новым LP-сервером (' . print_r($lps_answer['lps'], true));
                 $this->changeWorkingLps($lps_answer['lps']);
             } else if (!isset($lps_answer['lps']->server)) {
-                $this->log(self::DEBUG, 'Обновление параметров LP-сервера (' . print_r($lps_answer['lps'], true) . ')');
+//                $this->log(self::DEBUG, 'Обновление параметров LP-сервера (' . print_r($lps_answer['lps'], true) . ')');
                 $this->changeWorkingLps($lps_answer['lps']);
             } else {
-                $this->log(self::DEBUG, 'Смена LP-сервера (' . print_r($lps_answer['lps'], true) . ')');
+//                $this->log(self::DEBUG, 'Смена LP-сервера (' . print_r($lps_answer['lps'], true) . ')');
                 $this->changeWorkingLps($lps_answer['lps']);
             }
 
@@ -204,15 +213,14 @@ class Bot extends AbstractDaemon
                 switch ($update[0]) {
                     case VkApi::NEW_MESSAGE_ADDED_CODE:
                         $message = Message::createFromLongPollEvent($update);
-//                        $this->raiseEvent(self::NEW_MESSAGE_EVENT, $message);
 
                         if ($message->flags & Message::OUTBOX)
-                            $this->raiseEvent(self::NEW_OUTBOX_MESSAGE_EVENT, $message);
+                            $this->handleEvent(self::NEW_OUTBOX_MESSAGE_EVENT, $message);
                         else {
                             if ($message->flags & Message::UNREAD)
-                                $this->raiseEvent(self::NEW_UNREAD_INBOX_MESSAGE_EVENT, $message);
+                                $this->handleEvent(self::NEW_UNREAD_INBOX_MESSAGE_EVENT, $message);
                             else
-                                $this->raiseEvent(self::NEW_INBOX_MESSAGE_EVENT, $message);
+                                $this->handleEvent(self::NEW_INBOX_MESSAGE_EVENT, $message);
                         }
                         break;
 
@@ -226,7 +234,7 @@ class Bot extends AbstractDaemon
                         break;
 
                     case VkApi::USER_TYPING_IN_DIALOG:
-                        $this->raiseEvent(self::USER_TYPING_IN_DIALOG_EVENT, TypingInDialog::createFromLongPollEvent($update));
+                        $this->handleEvent(self::USER_TYPING_IN_DIALOG_EVENT, TypingInDialog::createFromLongPollEvent($update));
                         break;
 
                     case VkApi::USER_TYPING_IN_CHAT:
@@ -244,9 +252,23 @@ class Bot extends AbstractDaemon
     /**
      * @param $eventType
      * @param $eventData
+     * @throws Exception
+     */
+    protected function handleEvent($eventType, $eventData)
+    {
+        if ($this->config['bot']['work_mode'] === 'threaded') {
+            $this->workers->sendData([$eventType, $eventData]);
+        } else {
+            $this->raiseEvent($eventType, $eventData);
+        }
+    }
+
+    /**
+     * @param $eventType
+     * @param $eventData
      * @return bool
      */
-    protected function raiseEvent($eventType, $eventData)
+    public function raiseEvent($eventType, $eventData)
     {
         if (!isset($this->eventListeners[$eventType]))
             return true;
@@ -319,5 +341,14 @@ class Bot extends AbstractDaemon
             ]);
         }
         return $this->lpsPath;
+    }
+
+    /**
+     * @param $level
+     * @param $message
+     */
+    public function log($level, $message)
+    {
+        parent::log($level, $message);
     }
 }

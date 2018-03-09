@@ -1,22 +1,29 @@
 <?php
-
 use wapmorgan\VkontakteBot\Bot;
 use wapmorgan\VkontakteBot\Event;
 use wapmorgan\VkontakteBot\Message;
-use wapmorgan\VkontakteBot\TypingInDialog;
+use wapmorgan\VkontakteBot\VkException;
 
 $daemon = new Bot([
     'configFile' => dirname(__DIR__).'/config.yaml',
     'name' => 'vkontakte-bot',
     'fullname' => 'Test vkontakte bot',
 ]);
-$daemon->setLogger(Bot::FILES);
 
 class SimpleBot {
+    /**
+     * @param Event $event
+     * @throws VkException
+     */
     public function onUnreadMessageEvent(Event $event) {
-        return $this->onMessage($event->getBot(), $event->getEventData());
+        $this->onMessage($event->getBot(), $event->getEventData());
     }
 
+    /**
+     * @param Bot $bot
+     * @param Message $message
+     * @throws VkException
+     */
     public function onMessage(Bot $bot, Message $message) {
         $bot->getApi()->api('messages.send', [
             'user_id' => $message->peerId,

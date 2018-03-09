@@ -17,6 +17,9 @@ api:
   # Default language for names
   language: "ru"
 
+  # Default timeout for Long-Poll server
+  lps-timeout: 25
+
 # Bot configuration
 bot:
   # Work mode: "simple" or "threaded"

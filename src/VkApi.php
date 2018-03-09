@@ -43,6 +43,15 @@ class VkApi extends VK {
     }
 
     /**
+     * Модификация общих параметров для всех запросов
+     */
+    public function mergeCommonParameters(array $params = [])
+    {
+        $this->params += $params;
+        return $this;
+    }
+
+    /**
      * Выполняет запрос к АПИ ВК и преобразует ошибки в исключения
      * @param $method
      * @param array $parameters
