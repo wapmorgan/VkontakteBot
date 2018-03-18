@@ -5,7 +5,7 @@
 
 1. Склонировать проект: `composer create-project wapmorgan/vkontakte-bot dev-master`.
 2. Скопировать `config.yaml.sample` в `config.yaml` и отредактировать в соответствии с комментариями (внести данные приложения и сообщества)
-3. Открыть файл `bot-initialization.php`. Добавить/изменить обработчики событий:
+3. Открыть файл `bin/bot-initialization.php`. Добавить/изменить обработчики событий:
 
     - Обработчик любого события регистрируется методом `registerEventListener()` объекта `Bot`, например:
     ```php
@@ -30,7 +30,7 @@
     $daemon->registerEventListener(Bot::UNREAD_HISTORY_MESSAGE_EVENT, $historyMessageListener);
     ```
 
-4. Запустить `sudo bin/bot-launcher` (режим работы бота в реальном времени) или `sudo bin/bot-daemon start` (для запуска бота в качестве демона).
+4. Запустить `sudo bin/bot-launcher` (режим работы бота в реальном времени; остановка по Ctrl+C) или `sudo bin/bot-daemon start` (для запуска бота в качестве демона; остановка по `sudo bin/bot-daemon stop`).
 
 ## Конфигурация
 Основные настройки бота хранятся в файле `config.yaml` в корне проекта.
