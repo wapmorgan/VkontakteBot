@@ -22,6 +22,9 @@ class Bot extends AbstractDaemon
 
     const USER_TYPING_IN_DIALOG_EVENT = 30;
 
+    const FRIEND_BECAME_ONLINE_EVENT = 40;
+    const FRIEND_BECAME_OFFLINE_EVENT = 41;
+
     /**
      * @var string Расположение файла с yaml-конфигом
      */
@@ -143,6 +146,7 @@ class Bot extends AbstractDaemon
         // после выхода из этой функции останавливаем бота (и все порожденные процессы)
         if ($this->config['bot']['work_mode'] === 'threaded') {
             $this->workers->waitToFinish();
+            unset($this->workers);
         }
     }
 
@@ -194,12 +198,13 @@ class Bot extends AbstractDaemon
      */
     protected function connectToStream()
     {
+        $this->log(self::DEBUG, 'Подключение к серверу обновлений');
         while ($this->running) {
             $current_lps = $this->getWorkingLps();
             $lps_answer = $this->vk->connectToLpsAndGetUpdates($current_lps ? $current_lps->server : null, $current_lps ? $current_lps->key : null, $current_lps ? $current_lps->ts : null);
 
             if ($current_lps === false) {
-                $this->log(self::DEBUG, 'Соединение с новым LP-сервером (' . print_r($lps_answer['lps'], true));
+//                $this->log(self::DEBUG, 'Соединение с новым LP-сервером (' . print_r($lps_answer['lps'], true));
                 $this->changeWorkingLps($lps_answer['lps']);
             } else if (!isset($lps_answer['lps']->server)) {
 //                $this->log(self::DEBUG, 'Обновление параметров LP-сервера (' . print_r($lps_answer['lps'], true) . ')');
@@ -228,13 +233,15 @@ class Bot extends AbstractDaemon
                         break;
 
                     case VkApi::FRIEND_BECAME_ONLINE:
+                        $this->handleEvent(self::FRIEND_BECAME_ONLINE_EVENT, FriendOnlineStatus::createFromLongPollEvent($update));
                         break;
 
                     case VkApi::FRIEND_BECAME_OFFLINE:
+                        $this->handleEvent(self::FRIEND_BECAME_ONLINE_EVENT, FriendOfflineStatus::createFromLongPollEvent($update));
                         break;
 
                     case VkApi::USER_TYPING_IN_DIALOG:
-                        $this->handleEvent(self::USER_TYPING_IN_DIALOG_EVENT, TypingInDialog::createFromLongPollEvent($update));
+                        $this->handleEvent(self::USER_TYPING_IN_DIALOG_EVENT, DialogTyping::createFromLongPollEvent($update));
                         break;
 
                     case VkApi::USER_TYPING_IN_CHAT:

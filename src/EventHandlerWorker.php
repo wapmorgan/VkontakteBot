@@ -14,7 +14,6 @@ class EventHandlerWorker extends Worker {
      */
     public function onPayload($payload)
     {
-        $this->bot->log(Bot::INFO, 'Got event '.print_r($payload, true));
         $this->bot->raiseEvent($payload[0], $payload[1]);
     }
 }

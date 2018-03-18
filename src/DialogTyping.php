@@ -1,15 +1,8 @@
 <?php
-/**
- * Created by PhpStorm.
- * User: wapmorgan
- * Date: 26.02.18
- * Time: 19:01
- */
-
 namespace wapmorgan\VkontakteBot;
 
 
-class TypingInDialog
+class DialogTyping
 {
     public $userId;
     public $flags;
@@ -23,7 +16,7 @@ class TypingInDialog
 
     /**
      * @param array $update
-     * @return TypingInDialog
+     * @return DialogTyping
      */
     public static function createFromLongPollEvent(array $update)
     {
