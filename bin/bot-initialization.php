@@ -76,13 +76,13 @@ $daemon->registerEventListener(Bot::USER_TYPING_IN_DIALOG_EVENT, [$bot, 'onDialo
 $daemon->registerEventListener(Bot::FRIEND_BECAME_ONLINE_EVENT, function (Event $event) {
     /** @var FriendOnlineStatus $online_status */
     $online_status = $event->getEventData();
-    echo 'Онлайн: '.$online_status->userId;
+    $event->getBot()->log(Bot::DEBUG, 'Онлайн: '.$online_status->userId);
 });
 
 $daemon->registerEventListener(Bot::FRIEND_BECAME_OFFLINE_EVENT, function (Event $event) {
     /** @var FriendOfflineStatus $offline_status */
     $offline_status = $event->getEventData();
-    echo 'Оффлайн: '.$offline_status->userId;
+    $event->getBot()->log(Bot::DEBUG, 'Оффлайн: '.$offline_status->userId);
 });
 
 return $daemon;

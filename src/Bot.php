@@ -204,13 +204,13 @@ class Bot extends AbstractDaemon
             $lps_answer = $this->vk->connectToLpsAndGetUpdates($current_lps ? $current_lps->server : null, $current_lps ? $current_lps->key : null, $current_lps ? $current_lps->ts : null);
 
             if ($current_lps === false) {
-//                $this->log(self::DEBUG, 'Соединение с новым LP-сервером (' . print_r($lps_answer['lps'], true));
+                $this->log(self::DEBUG, 'Соединение с новым LP-сервером (' . print_r($lps_answer['lps'], true));
                 $this->changeWorkingLps($lps_answer['lps']);
             } else if (!isset($lps_answer['lps']->server)) {
-//                $this->log(self::DEBUG, 'Обновление параметров LP-сервера (' . print_r($lps_answer['lps'], true) . ')');
+                $this->log(self::DEBUG, 'Обновление параметров LP-сервера (' . print_r($lps_answer['lps'], true) . ')');
                 $this->changeWorkingLps($lps_answer['lps']);
             } else {
-//                $this->log(self::DEBUG, 'Смена LP-сервера (' . print_r($lps_answer['lps'], true) . ')');
+                $this->log(self::DEBUG, 'Смена LP-сервера (' . print_r($lps_answer['lps'], true) . ')');
                 $this->changeWorkingLps($lps_answer['lps']);
             }
 
