@@ -28,7 +28,7 @@ class Bot extends AbstractDaemon
     /**
      * @var string Версия API ВК
      */
-    public $apiVersion = '5.68';
+    public $apiVersion = '5.80';
 
     /**
      * @var string Имя lps-файла
@@ -104,7 +104,7 @@ class Bot extends AbstractDaemon
 
         $this->vk = new VkApi($this->config['api']['application']['id'],
             $this->config['api']['application']['key'],
-            $this->config['api']['community-key']);
+            $this->config['api']['community']['key']);
         $this->vk->setApiVersion($this->apiVersion);
         $this->vk->setCommonParameters([
             'lang' => $this->config['api']['language'],
@@ -118,6 +118,7 @@ class Bot extends AbstractDaemon
      */
     protected function mainLoop()
     {
+        $this->log(self::DEBUG, 'Запуск бота с VK API '.$this->apiVersion);
         if ($this->config['bot']['work_mode'] === 'threaded') {
             // создаем обработчика сообщений
             $worker = new EventHandlerWorker();
@@ -153,35 +154,39 @@ class Bot extends AbstractDaemon
     protected function processHistory()
     {
         $this->log(self::DEBUG, 'Получение истории сообщений');
-        $dialogs = $this->vk->api('messages.getDialogs', [
-            'unread' => 1,
+        $dialogs = $this->vk->api('messages.getConversations', [
+            'filter' => 'unread',
         ]);
 
-        foreach ($dialogs->items as $dialog) {
-            $this->log(self::DEBUG, 'Получение непрочитанных сообщений диалога (user = '.$dialog->message->user_id.', количество непрочитанных - '.$dialog->unread.')');
-            $n_unread_messages = $dialog->unread;
+        if (!isset($dialogs->unread_count) || $dialogs->unread_count == 0)
+            return true;
+
+        foreach ($dialogs->items as $item) {
+            $dialog = $item->conversation;
+            $this->log(self::DEBUG, 'Получение непрочитанных сообщений диалога (user = '.$dialog->peer->id.', количество непрочитанных - '.$dialog->unread_count.')');
 
             $offset = 0;
-            while ($n_unread_messages > 0) {
-                $dialog_unread_messages = $this->vk->api('messages.getHistory', [
-                    'user_id' => $dialog->message->user_id,
-                    'count' => min(VkApi::MAX_MESSAGES_COUNT_IN_DIALOG_QUERY, $n_unread_messages),
-                    'offset' => $offset,
-                ]);
-                $this->log(self::DEBUG, 'Чтение очередной порции сообщений из диалога '.$dialog->message->user_id.' (со смещения '.$offset.') -> получено непрочитанных - '.$dialog_unread_messages->unread);
 
-                foreach ($dialog_unread_messages->items as $dialog_unread_message) {
-                    if ($dialog_unread_message->out == 0
-                        && $dialog_unread_message->read_state == 0) {
-                        $n_unread_messages--;
+            $dialog_unread_messages = $this->vk->api('messages.getHistory', [
+                'group_id' => $this->config['api']['community']['id'],
+                'user_id' => $dialog->peer->id,
+                'count' => min(VkApi::MAX_MESSAGES_COUNT_IN_DIALOG_QUERY, $dialog->unread_count),
+                'offset' => $offset,
+            ]);
+            var_dump($dialog_unread_messages);
+
+            $this->log(self::DEBUG, 'Чтение очередной порции сообщений из диалога '.$dialog->peer->id.' (со смещения '.$offset.') -> получено непрочитанных - '.$dialog_unread_messages->unread_count);
+
+            foreach ($dialog_unread_messages->items as $dialog_unread_message) {
+                if ($dialog_unread_message->out == 0
+                    && $dialog_unread_message->read_state == 0) {
+                    $n_unread_messages--;
 
 
-                        $this->handleEvent(self::UNREAD_HISTORY_MESSAGE_EVENT, Message::createFromDialogHistory($dialog_unread_message));
-                    }
+                    $this->handleEvent(self::UNREAD_HISTORY_MESSAGE_EVENT, Message::createFromDialogHistory($dialog_unread_message));
                 }
-                $offset += VkApi::MAX_MESSAGES_COUNT_IN_DIALOG_QUERY;
             }
-
+            $offset += VkApi::MAX_MESSAGES_COUNT_IN_DIALOG_QUERY;
         }
     }
 
@@ -196,7 +201,10 @@ class Bot extends AbstractDaemon
         $this->log(self::DEBUG, 'Подключение к серверу обновлений');
         while ($this->running) {
             $current_lps = $this->getWorkingLps();
-            $lps_answer = $this->vk->connectToLpsAndGetUpdates($current_lps ? $current_lps->server : null, $current_lps ? $current_lps->key : null, $current_lps ? $current_lps->ts : null);
+            $lps_answer = $this->vk->connectToLpsAndGetUpdates($this->config['api']['community']['id'],
+                $current_lps ? $current_lps->server : null,
+                $current_lps ? $current_lps->key : null,
+                $current_lps ? $current_lps->ts : null);
 
             if ($current_lps === false) {
                 $this->log(self::DEBUG, 'Соединение с новым LP-сервером (' . print_r($lps_answer['lps'], true));

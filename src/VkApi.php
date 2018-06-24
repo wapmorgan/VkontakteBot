@@ -93,7 +93,7 @@ class VkApi extends VK {
         if (isset($result->response))
             return $result->response;
         if (isset($result->error)) {
-            throw new VkException($result->error->error_msg, $result->error->error_code);
+            throw new VkException($result->error->error_msg.' on method '.$method.json_encode($parameters), $result->error->error_code);
         }
         return false;
     }
@@ -124,7 +124,7 @@ class VkApi extends VK {
 	 * @return array Массив с одним или несколькими элементами
 	 * @throws VkException
 	 */
-    public function connectToLpsAndGetUpdates($community_id, $server = null, $key = null, $ts = null, array $options = [])
+    public function connectToLpsAndGetUpdates($communityId, $server = null, $key = null, $ts = null, array $options = [])
     {
         if ($server !== null && $key !== null && $ts !== null) {
             $result = $this->getUpdatesFromLps($server, $key, $ts, $this->defaultLpsParams + $options);
@@ -132,17 +132,17 @@ class VkApi extends VK {
                 switch ($result->failed) {
                     case 1:
                         // запрашиваем заново с новым параметром ts
-                        return call_user_func([$this, __FUNCTION__], $server, $key, $result->ts, $options);
+                        return call_user_func([$this, __FUNCTION__], $communityId, $server, $key, $result->ts, $options);
                     case 2:
                         // запрашиваем заново с новым параметром key
-                        $new_lps = $this->getNewLps($community_id);
-                        $result = call_user_func([$this, __FUNCTION__], $server, $new_lps->key, $ts, $options);
+                        $new_lps = $this->getNewLps($communityId);
+                        $result = call_user_func([$this, __FUNCTION__], $communityId, $server, $new_lps->key, $ts, $options);
                         $result['lps'] = (object)['key' => $new_lps->key];
                         return $result;
                     case 3:
                         // запрашиваем заново с новыми параметрами key и ts
-                        $new_lps = $this->getNewLps($community_id);
-                        $result =  call_user_func([$this, __FUNCTION__], $server, $new_lps->key, $new_lps->ts, $options);
+                        $new_lps = $this->getNewLps($communityId);
+                        $result =  call_user_func([$this, __FUNCTION__], $communityId, $server, $new_lps->key, $new_lps->ts, $options);
                         $result['lps'] = (object)['key' => $new_lps->key, 'ts' => $new_lps->ts];
                         return $result;
                     case 4:
@@ -156,7 +156,7 @@ class VkApi extends VK {
             }
         }
 
-        $new_lps = $this->getNewLps($community_id);
+        $new_lps = $this->getNewLps($communityId);
         $result =  call_user_func([$this, __FUNCTION__], $new_lps->server, $new_lps->key, $new_lps->ts, $options);
         $result['lps'] = (object)['server' => $new_lps->server, 'key' => $new_lps->key, 'ts' => $new_lps->ts];
         return $result;
@@ -171,7 +171,7 @@ class VkApi extends VK {
      */
     protected function getUpdatesFromLps($server, $key, $ts, $params)
     {
-        return json_decode(file_get_contents('https://'.$server.'?'.http_build_query([
+        return json_decode(file_get_contents($server.'?'.http_build_query([
             'act' => 'a_check',
             'key' => $key,
             'ts' => $ts,
