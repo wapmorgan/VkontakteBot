@@ -1,8 +1,12 @@
 # API configuration
 api:
-  # Community key
+  # Community configuration
   # Get yours on https://vk.com/publicXXX?act=tokens
-  community-key: ""
+  community:
+    # Community ID
+    id:
+    # Community service key
+    community-key: ""
 
   # Application configuration
   # Get yours on https://vk.com/editapp?id=XXX&section=options

@@ -16,13 +16,40 @@ class VkApi extends VK {
     const USER_TYPING_IN_DIALOG = 61;
     const USER_TYPING_IN_CHAT = 62;
 
+    // Типы событий в Bots Long-Poll API
+	const MESSAGE_RECEIVED = 'message_new';
+	const MESSAGE_SENT = 'message_reply';
+	const MESSAGE_EDITED = 'message_edit';
+
+	const USER_ALLOWED_MESSAGES = 'message_allow';
+	const USER_DENIED_MESSAGES = 'message_deny';
+
+	const PHOTO_ADDED = 'photo_new';
+	const PHOTO_COMMENT_ADDED = 'photo_comment_new';
+	const PHOTO_COMMENT_EDITED = 'photo_comment_edit';
+	const PHOTO_COMMENT_RESTORED = 'photo_comment_restore';
+	const PHOTO_COMMENT_DELETED = 'photo_comment_delete';
+
+	const AUDIO_ADDED = 'audio_new';
+
+	const VIDEO_ADDED = 'video_new';
+	const VIDEO_COMMENT_ADDED = 'video_comment_new';
+	const VIDEO_COMMENT_EDITED = 'video_comment_edit';
+	const VIDEO_COMMENT_RESTORED = 'video_comment_restore';
+	const VIDEO_COMMENT_DELETED = 'video_comment_delete';
+
+	const WALL_POSTED = 'wall_post_new';
+	const WALL_REPOSTED = 'wall_repost';
+	const WALL_COMMENT_ADDED = 'wall_reply_new';
+	const WALL_COMMENT_EDITED = 'wall_reply_edit';
+	const WALL_COMMENT_RESTORED = 'wall_reply_restore';
+	const WALL_COMMENT_DELETED = 'wall_reply_delete';
+
     /**
      * Параметры получения обновлений с LP-сервера
      */
     public $defaultLpsParams = [
         'wait' => 25,
-        'mode' => 2,
-        'version' => 2,
     ];
 
     /**
@@ -71,29 +98,33 @@ class VkApi extends VK {
         return false;
     }
 
-    /**
-     * Получает новый адрес для подключения к LP-серверу
-     * @throws VkException
-     */
-    public function getNewLps()
+	/**
+	 * Получает новый адрес для подключения к LP-серверу
+	 * @param $communityId
+	 * @return bool
+	 */
+    public function getNewLps($communityId)
     {
-        return $this->api('messages.getLongPollServer', ['lp_version' => 2]);
+        return $this->api('groups.getLongPollServer', [
+        	'group_id' => $communityId,
+		]);
     }
 
-    /**
-     * Комплексная функция:
-     * - Если переданы данные прошлого LP-сервера, пытается получить обновления с него:
-     * * - Если сервер устарел, действует как если бы данные не были переданы.
-     * * - Если сервер не устарел, запрашивает обновления с него. Возвращает только обновленные параметры сервера и обновления: [lps => {}, updates => []]
-     * - Если не переданы данные прошлого LP-сервера, запрашивает новый и получает данные с него. Возвращает новый сервер и обновления: [lps => {}, updates => []]
-     * @param null $server
-     * @param null $key
-     * @param null $ts
-     * @param array $options
-     * @return array Массив с одним или несколькими элементами
-     * @throws VkException
-     */
-    public function connectToLpsAndGetUpdates($server = null, $key = null, $ts = null, array $options = [])
+	/**
+	 * Комплексная функция:
+	 * - Если переданы данные прошлого LP-сервера, пытается получить обновления с него:
+	 * * - Если сервер устарел, действует как если бы данные не были переданы.
+	 * * - Если сервер не устарел, запрашивает обновления с него. Возвращает только обновленные параметры сервера и обновления: [lps => {}, updates => []]
+	 * - Если не переданы данные прошлого LP-сервера, запрашивает новый и получает данные с него. Возвращает новый сервер и обновления: [lps => {}, updates => []]
+	 * @param $community_id
+	 * @param null $server
+	 * @param null $key
+	 * @param null $ts
+	 * @param array $options
+	 * @return array Массив с одним или несколькими элементами
+	 * @throws VkException
+	 */
+    public function connectToLpsAndGetUpdates($community_id, $server = null, $key = null, $ts = null, array $options = [])
     {
         if ($server !== null && $key !== null && $ts !== null) {
             $result = $this->getUpdatesFromLps($server, $key, $ts, $this->defaultLpsParams + $options);
@@ -104,13 +135,13 @@ class VkApi extends VK {
                         return call_user_func([$this, __FUNCTION__], $server, $key, $result->ts, $options);
                     case 2:
                         // запрашиваем заново с новым параметром key
-                        $new_lps = $this->getNewLps();
+                        $new_lps = $this->getNewLps($community_id);
                         $result = call_user_func([$this, __FUNCTION__], $server, $new_lps->key, $ts, $options);
                         $result['lps'] = (object)['key' => $new_lps->key];
                         return $result;
                     case 3:
                         // запрашиваем заново с новыми параметрами key и ts
-                        $new_lps = $this->getNewLps();
+                        $new_lps = $this->getNewLps($community_id);
                         $result =  call_user_func([$this, __FUNCTION__], $server, $new_lps->key, $new_lps->ts, $options);
                         $result['lps'] = (object)['key' => $new_lps->key, 'ts' => $new_lps->ts];
                         return $result;
@@ -125,7 +156,7 @@ class VkApi extends VK {
             }
         }
 
-        $new_lps = $this->getNewLps();
+        $new_lps = $this->getNewLps($community_id);
         $result =  call_user_func([$this, __FUNCTION__], $new_lps->server, $new_lps->key, $new_lps->ts, $options);
         $result['lps'] = (object)['server' => $new_lps->server, 'key' => $new_lps->key, 'ts' => $new_lps->ts];
         return $result;

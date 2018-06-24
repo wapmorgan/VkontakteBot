@@ -9,14 +9,9 @@ use wapmorgan\Threadable\WorkersPool;
 
 class Bot extends AbstractDaemon
 {
-    const VK_EVENT = 1;
-
-//    const NEW_MESSAGE_EVENT = 2;
-    const NEW_OUTBOX_MESSAGE_EVENT = 3;
-    const NEW_INBOX_MESSAGE_EVENT = 4;
-    const NEW_UNREAD_INBOX_MESSAGE_EVENT = 5;
-
-    const MESSAGE_EDIT_EVENT = 10;
+	const NEW_MESSAGE_RECEIVED_EVENT = 1;
+	const SENT_MESSAGE_EVENT = 2;
+	const MESSAGE_EDIT_EVENT = 3;
 
     const UNREAD_HISTORY_MESSAGE_EVENT = 20;
 
@@ -215,21 +210,16 @@ class Bot extends AbstractDaemon
             }
 
             foreach ($lps_answer['updates'] as $update) {
-                switch ($update[0]) {
-                    case VkApi::NEW_MESSAGE_ADDED_CODE:
-                        $message = Message::createFromLongPollEvent($update);
+                switch ($update->type) {
+                    case VkApi::MESSAGE_RECEIVED:
+					case VkApi::MESSAGE_EDITED:
+					case VkApi::MESSAGE_SENT:
+                        $message = Message::createFromDialogHistory($update->object);
 
-                        if ($message->flags & Message::OUTBOX)
-                            $this->handleEvent(self::NEW_OUTBOX_MESSAGE_EVENT, $message);
-                        else {
-                            if ($message->flags & Message::UNREAD)
-                                $this->handleEvent(self::NEW_UNREAD_INBOX_MESSAGE_EVENT, $message);
-                            else
-                                $this->handleEvent(self::NEW_INBOX_MESSAGE_EVENT, $message);
-                        }
+						$this->handleEvent(self::NEW_MESSAGE_RECEIVED_EVENT, $message);
                         break;
 
-                    case VkApi::MESSAGE_EDITED_CODE:
+
                         break;
 
                     case VkApi::FRIEND_BECAME_ONLINE:

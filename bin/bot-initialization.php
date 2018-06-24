@@ -70,7 +70,7 @@ class SimpleBot {
 $bot = new SimpleBot();
 
 $daemon->registerEventListener(Bot::UNREAD_HISTORY_MESSAGE_EVENT, [$bot, 'onUnreadMessageEvent']);
-$daemon->registerEventListener(Bot::NEW_UNREAD_INBOX_MESSAGE_EVENT, [$bot, 'onUnreadMessageEvent']);
+$daemon->registerEventListener(Bot::NEW_MESSAGE_RECEIVED_EVENT, [$bot, 'onUnreadMessageEvent']);
 $daemon->registerEventListener(Bot::USER_TYPING_IN_DIALOG_EVENT, [$bot, 'onDialogTypingEvent']);
 
 $daemon->registerEventListener(Bot::FRIEND_BECAME_ONLINE_EVENT, function (Event $event) {
